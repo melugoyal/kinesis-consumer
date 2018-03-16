@@ -10,8 +10,12 @@ import (
 )
 
 // NewKinesisClient returns client to interface with Kinesis stream
-func NewKinesisClient() *KinesisClient {
-	svc := kinesis.New(session.New(aws.NewConfig()))
+func NewKinesisClient(region *string) *KinesisClient {
+	config := aws.NewConfig()
+	if region != nil {
+		config.Region = region
+	}
+	svc := kinesis.New(session.New(config))
 	return &KinesisClient{svc}
 }
 

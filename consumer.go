@@ -87,7 +87,7 @@ func New(streamName string, opts ...Option) (*Consumer, error) {
 		checkpoint: &noopCheckpoint{},
 		counter:    &noopCounter{},
 		logger:     log.New(ioutil.Discard, "", log.LstdFlags),
-		client:     NewKinesisClient(),
+		client:     NewKinesisClient(nil),
 	}
 
 	// override defaults
