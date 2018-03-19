@@ -24,8 +24,12 @@ func WithMaxInterval(maxInterval time.Duration) Option {
 }
 
 // New returns a checkpoint that uses DynamoDB for underlying storage
-func New(appName, tableName string, opts ...Option) (*Checkpoint, error) {
-	client := dynamodb.New(session.New(aws.NewConfig()))
+func New(appName, tableName string, region *string, opts ...Option) (*Checkpoint, error) {
+	config := aws.NewConfig()
+	if region != nil {
+		config.Region = region
+	}
+	client := dynamodb.New(session.New(config))
 
 	// ping table to verify it exists
 	_, err := client.DescribeTable(&dynamodb.DescribeTableInput{

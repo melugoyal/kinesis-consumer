@@ -36,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	// ddb checkpoint
-	ck, err := checkpoint.New(*app, *table)
+	ck, err := checkpoint.New(*app, *table, nil)
 	if err != nil {
 		log.Fatalf("checkpoint error: %v", err)
 	}
