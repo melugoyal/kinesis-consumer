@@ -10,9 +10,8 @@ import (
 )
 
 // NewKinesisClient returns client to interface with Kinesis stream
-func NewKinesisClient() *KinesisClient {
-	svc := kinesis.New(session.New(aws.NewConfig()))
-	return &KinesisClient{svc}
+func NewKinesisClient(awsSession *session.Session) *KinesisClient {
+	return &KinesisClient{kinesis.New(awsSession)}
 }
 
 // KinesisClient acts as wrapper around Kinesis client

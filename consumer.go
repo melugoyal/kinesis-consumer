@@ -7,6 +7,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 )
 
@@ -76,7 +77,7 @@ func WithClient(client Client) Option {
 
 // New creates a kinesis consumer with default settings. Use Option to override
 // any of the optional attributes.
-func New(streamName string, opts ...Option) (*Consumer, error) {
+func New(awsSession *session.Session, streamName string, opts ...Option) (*Consumer, error) {
 	if streamName == "" {
 		return nil, fmt.Errorf("must provide stream name")
 	}
@@ -87,7 +88,7 @@ func New(streamName string, opts ...Option) (*Consumer, error) {
 		checkpoint: &noopCheckpoint{},
 		counter:    &noopCounter{},
 		logger:     log.New(ioutil.Discard, "", log.LstdFlags),
-		client:     NewKinesisClient(),
+		client:     NewKinesisClient(awsSession),
 	}
 
 	// override defaults
@@ -111,7 +112,7 @@ type Consumer struct {
 
 // Scan scans each of the shards of the stream, calls the callback
 // func with each of the kinesis records.
-func (c *Consumer) Scan(ctx context.Context, fn func(*Record) bool) error {
+func (c *Consumer) Scan(ctx context.Context, fn func(*Record) (bool, bool)) error {
 	shardIDs, err := c.client.GetShardIDs(c.streamName)
 	if err != nil {
 		return fmt.Errorf("get shards error: %v", err)
@@ -155,8 +156,9 @@ func (c *Consumer) Scan(ctx context.Context, fn func(*Record) bool) error {
 
 // ScanShard loops over records on a specific shard, calls the callback func
 // for each record and checkpoints the progress of scan.
-// Note: Returning `false` from the callback func will end the scan.
-func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn func(*Record) bool) (err error) {
+// Note: The first boolean return value from the callback func determines if the scan continues. return true to continue scanning
+//       The second boolean return value from the callback func determines if the processed record should get checkpointed. return true to checkpoint
+func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn func(*Record) (bool, bool)) (err error) {
 	lastSeqNum, err := c.checkpoint.Get(c.streamName, shardID)
 	if err != nil {
 		return fmt.Errorf("get checkpoint error: %v", err)
@@ -172,15 +174,18 @@ func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn func(*Recor
 
 	// loop records
 	for r := range recc {
-		if ok := fn(r); !ok {
-			break
+		keepProcessing, checkpoint := fn(r)
+		if checkpoint {
+			c.counter.Add("records", 1)
+
+			err := c.checkpoint.Set(c.streamName, shardID, *r.SequenceNumber)
+			if err != nil {
+				return fmt.Errorf("set checkpoint error: %v", err)
+			}
 		}
 
-		c.counter.Add("records", 1)
-
-		err := c.checkpoint.Set(c.streamName, shardID, *r.SequenceNumber)
-		if err != nil {
-			return fmt.Errorf("set checkpoint error: %v", err)
+		if !keepProcessing {
+			break
 		}
 	}
 
