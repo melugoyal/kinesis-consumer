@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 func TestNew(t *testing.T) {
-	_, err := New("myStreamName")
+	_, err := New(session.Must(session.NewSession()), "myStreamName")
 	if err != nil {
 		t.Fatalf("new consumer error: %v", err)
 	}
@@ -45,9 +46,9 @@ func TestScanShard(t *testing.T) {
 	// callback fn simply appends the record data to result string
 	var (
 		resultData string
-		fn         = func(r *Record) bool {
+		fn         = func(r *Record) (bool, bool) {
 			resultData += string(r.Data)
-			return true
+			return true, true
 		}
 	)
 

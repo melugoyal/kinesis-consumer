@@ -7,6 +7,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 )
 
@@ -76,7 +77,7 @@ func WithClient(client Client) Option {
 
 // New creates a kinesis consumer with default settings. Use Option to override
 // any of the optional attributes.
-func New(streamName string, opts ...Option) (*Consumer, error) {
+func New(awsSession *session.Session, streamName string, opts ...Option) (*Consumer, error) {
 	if streamName == "" {
 		return nil, fmt.Errorf("must provide stream name")
 	}
@@ -87,7 +88,7 @@ func New(streamName string, opts ...Option) (*Consumer, error) {
 		checkpoint: &noopCheckpoint{},
 		counter:    &noopCounter{},
 		logger:     log.New(ioutil.Discard, "", log.LstdFlags),
-		client:     NewKinesisClient(nil),
+		client:     NewKinesisClient(awsSession),
 	}
 
 	// override defaults
